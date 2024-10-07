@@ -1,5 +1,6 @@
 import time
 import serial
+# https://github.com/IRNAS/ppk2-api-python
 from ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 import logging
 
