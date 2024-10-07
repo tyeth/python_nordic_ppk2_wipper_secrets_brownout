@@ -1,0 +1,3 @@
+[submodule "lib/ppk2-api-python"]
+	path = lib/ppk2-api-python
+	url = https://github.com/IRNAS/ppk2-api-python
