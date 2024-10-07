@@ -1,6 +1,6 @@
 import time
 import serial
-import ppk2
+from ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 import logging
 
 # Configuration
@@ -20,10 +20,11 @@ logging.info('Starting voltage cycle test')
 
 # Initialize PPK2
 logging.info('Initializing PPK2')
-ppk = ppk2.PPK2(PPK2_COM_PORT)
-ppk.set_mode(ppk2.PPK2.Mode.SOURCE)
-ppk.set_voltage(START_VOLTAGE)
-ppk.enable_power(True)
+ppk = PPK2_API(PPK2_COM_PORT)  # or PPK2_MP for multiprocessing
+ppk.get_modifiers()
+ppk.use_source_meter()
+ppk.set_source_voltage(int(START_VOLTAGE * 1000))
+ppk.start_measuring()
 
 # Initialize serial connection
 def initialize_serial_connection():
@@ -74,7 +75,7 @@ try:
     while voltage <= END_VOLTAGE:
         logging.info(f"Testing voltage: {voltage:.2f}V")
         print(f"Testing voltage: {voltage:.2f}V")
-        ppk.set_voltage(voltage)
+        ppk.set_source_voltage(int(voltage * 1000))  # Update voltage in mV
 
         for cycle in range(CYCLE_RETRIES):
             logging.info(f"Cycle {cycle + 1} at {voltage:.2f}V")
@@ -86,20 +87,22 @@ try:
             logging.debug("Power on")
 
             # Start logging power measurements during boot
-            ppk.start_measurement()
+            ppk.start_measuring()
 
             # Attempt to reconnect immediately after power on
             ser = initialize_serial_connection()
 
             success, secrets_found = check_boot_success()
 
-            # Stop logging power measurements after boot check
-            ppk.stop_measurement()
-            power_data = ppk.get_measurement_data()
-            with open(f'power_data_{voltage:.2f}V_cycle_{cycle + 1}.csv', 'w') as f:
-                f.write('Timestamp,Voltage,Current')
-                for entry in power_data:
-                    f.write(f"{entry['timestamp']},{entry['voltage']},{entry['current']}")
+            # Fetch power measurements after boot check
+            read_data = ppk.get_data()
+            if read_data != b'':
+                samples = ppk.get_samples(read_data)
+                with open(f'power_data_{voltage:.2f}V_cycle_{cycle + 1}.csv', 'w') as f:
+                    f.write('Timestamp,Voltage,Current\n')
+                    timestamp = time.time()  # Using current timestamp for logging
+                    for current in samples:
+                        f.write(f"{timestamp},{voltage},{current}\n")
 
             if success:
                 if secrets_found:
@@ -118,6 +121,6 @@ try:
 
 finally:
     logging.info('Test completed, disabling power and closing connections')
-    ppk.enable_power(False)
+    ppk.stop_measuring()
     ppk.close()
     ser.close()
