@@ -1,58 +1,74 @@
 import time
 import serial
 # https://github.com/IRNAS/ppk2-api-python
-from ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
+from ppk2_api.ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 import logging
 
 # Configuration
-SERIAL_PORT = '/dev/ttyUSB0'  # Replace with your serial port
+SERIAL_PORT = 'COM36' # '/dev/ttyUSB0'  # Replace with your serial port
 BAUD_RATE = 115200
-PPK2_COM_PORT = '/dev/ttyACM0'  # Replace with your PPK2 communication port
-START_VOLTAGE = 2.7  # Start voltage in volts
-END_VOLTAGE = 3.6  # End voltage in volts
-STEP_VOLTAGE = 0.01  # Step increase in volts
-CYCLE_RETRIES = 4  # Number of retries per voltage step
+PPK2_COM_PORT = 'COM34' # '/dev/ttyACM0'  # Replace with your PPK2 communication port
+START_VOLTAGE = 3.6  # Start voltage in volts
+END_VOLTAGE = 2.6  # End voltage in volts
+STEP_VOLTAGE = 0.1  # Step increase in volts
+CYCLE_RETRIES = 5  # Number of retries per voltage step
 ATTEMPT_TIMEOUT = 20
 
 # Configure logging
-logging.basicConfig(filename='voltage_test.log', level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(handlers=[logging.FileHandler('voltage_test.log', 'w', 'utf-8',
+                                                    delay=True), logging.StreamHandler()],
+                      level=logging.DEBUG,
+                      format='%(asctime)s - %(levelname)s - %(message)s')
 logging.info('Starting voltage cycle test')
 
 # Initialize PPK2
 logging.info('Initializing PPK2')
 ppk = PPK2_API(PPK2_COM_PORT)  # or PPK2_MP for multiprocessing
-ppk.get_modifiers()
+logging.info(f"ppk2 get_modifiers: {ppk.get_modifiers()}")
 ppk.use_source_meter()
 ppk.set_source_voltage(int(START_VOLTAGE * 1000))
 ppk.start_measuring()
 
 # Initialize serial connection
-def initialize_serial_connection():
-    while True:
+def initialize_serial_connection(timeout=5):
+    logging.info(f'Initializing serial connection to DUT {SERIAL_PORT} at {BAUD_RATE} baud')
+    start_time = time.time()
+    while time.time() - start_time < timeout:
         try:
-            logging.info('Attempting to initialize serial connection')
+            logging.debug('Attempting to initialize serial connection')
             ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=10)
-            logging.info('Serial connection established')
+            logging.info(f'Serial connection established {SERIAL_PORT} at {BAUD_RATE} baud')
             return ser
         except serial.SerialException as e:
-            logging.error(f'Serial connection failed: {e}, retrying...')
+            logging.debug(f'Serial connection failed: {e}, retrying...')
             time.sleep(0.1)
+    
+    return None
 
-ser = initialize_serial_connection()
+
+ser = None
+try:
+    ser = initialize_serial_connection(3)
+except Exception as e:
+    logging.debug(f'Failed to establish serial connection: {e}')
+
 
 def check_boot_success():
-    nonlocal ATTEMPT_TIMEOUT
-    ser.reset_input_buffer()
+    global ATTEMPT_TIMEOUT, ser
+    try:
+        ser.reset_input_buffer()
+    except Exception as e:
+        logging.error(f"Failed to reset serial input buffer: {e}")
+        # ser = initialize_serial_connection()
     boot_success = False
     secrets_found = False
 
     start_time = time.time()
     while time.time() - start_time < ATTEMPT_TIMEOUT:
         try:
-            if ser.in_waiting > 0:
+            if ser is not None and ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8').strip()
-                logging.debug(f"Serial output: {line}")
+                logging.info(f"Serial output: {line}")
                 if 'Connected to WiFi!' in line:
                     boot_success = True
                     secrets_found = True
@@ -65,15 +81,24 @@ def check_boot_success():
                     boot_success = True
                     secrets_found = False
                     break
+            elif ser is None:
+                time.sleep(0.1)
+                ser = initialize_serial_connection()
         except serial.SerialException as e:
-            logging.error(f"Serial read error: {e}, attempting to reconnect")
-            ser.close()
+            logging.debug(f"Serial read error: {e}, attempting to reconnect")
+            if ser is not none and hasattr(ser,"close"):
+                ser.close()
             ser = initialize_serial_connection()
     return boot_success, secrets_found
 
 try:
+    if START_VOLTAGE < END_VOLTAGE:
+        new_start = END_VOLTAGE
+        END_VOLTAGE = START_VOLTAGE
+        START_VOLTAGE = new_start
+
     voltage = START_VOLTAGE
-    while voltage <= END_VOLTAGE:
+    while voltage >= END_VOLTAGE:
         logging.info(f"Testing voltage: {voltage:.2f}V")
         print(f"Testing voltage: {voltage:.2f}V")
         ppk.set_source_voltage(int(voltage * 1000))  # Update voltage in mV
@@ -81,10 +106,10 @@ try:
         for cycle in range(CYCLE_RETRIES):
             logging.info(f"Cycle {cycle + 1} at {voltage:.2f}V")
             print(f"Cycle {cycle + 1} at {voltage:.2f}V")
-            ppk.toggle_power(False)  # Power off
+            ppk.toggle_DUT_power("OFF")  # Power off
             logging.debug("Power off")
             time.sleep(0.75)  # Minimal wait to allow power to settle
-            ppk.toggle_power(True)  # Power on
+            ppk.toggle_DUT_power("ON")  # Power on
             logging.debug("Power on")
 
             # Start logging power measurements during boot
@@ -123,5 +148,6 @@ try:
 finally:
     logging.info('Test completed, disabling power and closing connections')
     ppk.stop_measuring()
-    ppk.close()
-    ser.close()
+    ppk.toggle_DUT_power("OFF")  # Power on
+    if ser:
+        ser.close()

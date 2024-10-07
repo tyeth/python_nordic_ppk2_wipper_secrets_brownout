@@ -5,8 +5,8 @@ import logging
 # Configuration
 PPK2_COM_PORT = 'COM34'  # Replace with your PPK2 communication port on Windows
 VOLTAGES = [800, 1500, 3000]  # Voltages in mV to cycle through (0 raises error in lib)
-POWER_CYCLE_INTERVAL = 3  # Time in seconds for each voltage level
-POWER_OFF_INTERVAL = 3  # Time in seconds to keep power off between cycles
+POWER_CYCLE_INTERVAL = 66  # Time in seconds for each voltage level
+POWER_OFF_INTERVAL = 31  # Time in seconds to keep power off between cycles
 
 # Configure logging
 logging.basicConfig(filename='power_toggle_test.log', level=logging.DEBUG,
