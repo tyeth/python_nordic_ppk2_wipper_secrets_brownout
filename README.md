@@ -45,9 +45,10 @@ The current code is expecting the [Adafruit WipperSnapper firmware](https://gith
 
 ## Scripts
 - **Main Voltage Cycle Test Script**: This script powers on the DUT, runs through multiple voltage levels, and checks if the ESP32-S3 boots and connects to WiFi successfully.
-  - The voltage starts at `2.7V` and increments up to `3.6V` with steps of `0.1V`. The ESP32-S3 is tested for each voltage level.
+  - The voltage starts at `3.0V` and decrements down to `2.8V` with steps of `0.01V`. The ESP32-S3 is tested for each voltage level.
   - Logs are saved in a file named `voltage_test.log`.
-  - The power cycle test is repeated `5` times per voltage level.
+  - The power cycle test is repeated `50` times per voltage level.
+  - Adjust the numbers to suite your needs, along with the conditionals for success+failure serial messages.
   
 - **Power Toggle Test Script**: This script tests if the power from PPK2 is toggled on/off as expected. It cycles between `800mV`, `1500mV`, and `3000mV` every `3 seconds`, turning the device off for `2 seconds` between cycles.
 
