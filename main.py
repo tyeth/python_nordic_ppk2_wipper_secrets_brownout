@@ -8,11 +8,14 @@ from ppk2_api.ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 SERIAL_PORT = 'COM36' # '/dev/ttyUSB0'  # Replace with your serial port
 BAUD_RATE = 115200
 PPK2_COM_PORT = 'COM34' # '/dev/ttyACM0'  # Replace with your PPK2 communication port
-START_VOLTAGE = 3.6  # Start voltage in volts
-END_VOLTAGE = 2.6  # End voltage in volts
-STEP_VOLTAGE = 0.1  # Step increase in volts
-CYCLE_RETRIES = 5  # Number of retries per voltage step
+START_VOLTAGE = 3.0  # Start voltage in volts
+END_VOLTAGE = 2.97  # End voltage in volts
+STEP_VOLTAGE = 0.01  # Step increase in volts
+CYCLE_RETRIES = 50  # Number of retries per voltage step
 ATTEMPT_TIMEOUT = 20
+
+## TODO: try with no sensors attached, also get loop to not continue if no serial connection in all attempts
+
 
 # Configure logging
 logging.basicConfig(handlers=[logging.FileHandler('voltage_test.log', 'w', 'utf-8',
@@ -38,7 +41,7 @@ def initialize_serial_connection(timeout=15):
     while time.time() - start_time < timeout:
         try:
             # logging.debug('Attempting to initialize serial connection')
-            ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=10)
+            ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=(3 if timeout > 3 else timeout))
             logging.info(f'Serial connection established {SERIAL_PORT} at {BAUD_RATE} baud')
             return ser
         except serial.SerialException as se:
@@ -70,7 +73,8 @@ def check_boot_success():
             if ser is not None and ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8').strip()
                 logging.info(f"Serial output: {line}")
-                if 'Connected to WiFi!' in line:
+                if 'Performing a WiFi scan for SSID...' in line:
+                # if 'Connected to WiFi!' in line:
                     boot_success = True
                     secrets_found = True
                     break
@@ -109,9 +113,12 @@ try:
             print(f"Cycle {cycle + 1} at {voltage:.2f}V")
             ppk.toggle_DUT_power("OFF")  # Power off
             logging.debug("Power off")
-            time.sleep(0.75)  # Minimal wait to allow power to settle
+            time.sleep(2)  
             ppk.toggle_DUT_power("ON")  # Power on
             logging.debug("Power on")
+
+            # Minimal wait to allow power to settle
+
 
             # Start logging power measurements during boot
             ppk.start_measuring()
