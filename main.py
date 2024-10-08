@@ -1,8 +1,8 @@
+import logging
 import time
 import serial
 # https://github.com/IRNAS/ppk2-api-python
 from ppk2_api.ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
-import logging
 
 # Configuration
 SERIAL_PORT = 'COM36' # '/dev/ttyUSB0'  # Replace with your serial port
@@ -30,7 +30,9 @@ ppk.set_source_voltage(int(START_VOLTAGE * 1000))
 ppk.start_measuring()
 
 # Initialize serial connection
+ser = None
 def initialize_serial_connection(timeout=5):
+    global ser
     logging.info(f'Initializing serial connection to DUT {SERIAL_PORT} at {BAUD_RATE} baud')
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -39,14 +41,13 @@ def initialize_serial_connection(timeout=5):
             ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=10)
             logging.info(f'Serial connection established {SERIAL_PORT} at {BAUD_RATE} baud')
             return ser
-        except serial.SerialException as e:
-            logging.debug(f'Serial connection failed: {e}, retrying...')
+        except serial.SerialException as se:
+            logging.debug(f'Serial connection failed: {se}, retrying...')
             time.sleep(0.1)
     
     return None
 
 
-ser = None
 try:
     ser = initialize_serial_connection(3)
 except Exception as e:
@@ -57,8 +58,8 @@ def check_boot_success():
     global ATTEMPT_TIMEOUT, ser
     try:
         ser.reset_input_buffer()
-    except Exception as e:
-        logging.error(f"Failed to reset serial input buffer: {e}")
+    except Exception as ee:
+        logging.error(f"Failed to reset serial input buffer: {ee}")
         # ser = initialize_serial_connection()
     boot_success = False
     secrets_found = False
@@ -84,9 +85,9 @@ def check_boot_success():
             elif ser is None:
                 time.sleep(0.1)
                 ser = initialize_serial_connection()
-        except serial.SerialException as e:
-            logging.debug(f"Serial read error: {e}, attempting to reconnect")
-            if ser is not none and hasattr(ser,"close"):
+        except serial.SerialException as se:
+            logging.debug(f"Serial read error: {se}, attempting to reconnect")
+            if ser is not None and hasattr(ser,"close"):
                 ser.close()
             ser = initialize_serial_connection()
     return boot_success, secrets_found

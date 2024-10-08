@@ -40,7 +40,7 @@ while True:
         # Test if power is really off after stop_measuring
         logging.info("Testing if power is off after stop_measuring")
         print("Testing if power is off after stop_measuring")
-        
+
         # logging.info("Turning power OFF")
         # print("Turning power OFF")
         # ppk.set_source_voltage(0)  # Set voltage to 0 to turn off power
