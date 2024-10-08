@@ -57,6 +57,16 @@ except Exception as e:
     logging.debug(f'Failed to establish serial connection: {e}')
 
 
+def serial_waiting():
+    global ser
+    try:
+        if ser is not None and ser.in_waiting > 0:
+            return True
+    except Exception as ee:
+        logging.error(f"Failed to check serial input buffer: {ee}")
+        return False
+
+
 def check_boot_success():
     global ATTEMPT_TIMEOUT, ser
     try:
@@ -70,7 +80,7 @@ def check_boot_success():
     start_time = time.time()
     while time.time() - start_time < ATTEMPT_TIMEOUT:
         try:
-            if ser is not None and ser.in_waiting > 0:
+            if ser is not None and serial_waiting() > 0:
                 line = ser.readline().decode('utf-8').strip()
                 logging.info(f"Serial output: {line}")
                 if 'Performing a WiFi scan for SSID...' in line:
