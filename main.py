@@ -145,7 +145,7 @@ try:
                 else:
                     logging.error(f"Voltage {voltage:.2f}V: Boot successful but secrets missing.")
                     print(f"Voltage {voltage:.2f}V: Boot successful but secrets missing.")
-                    raise ValueError()
+                    raise ValueError("Condition no longer true - This is the moment you've been waiting for!")
             else:
                 logging.error(f"Voltage {voltage:.2f}V: Boot failed.")
                 print(f"Voltage {voltage:.2f}V: Boot failed.")
