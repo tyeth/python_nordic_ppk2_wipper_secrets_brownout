@@ -143,7 +143,7 @@ try:
                 logging.error(f"Voltage {voltage:.2f}V: Boot failed.")
                 print(f"Voltage {voltage:.2f}V: Boot failed.")
 
-        voltage += STEP_VOLTAGE
+        voltage -= STEP_VOLTAGE
         time.sleep(1)
 
 finally:
