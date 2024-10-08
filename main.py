@@ -5,9 +5,9 @@ import serial
 from ppk2_api.ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 
 # Configuration
-SERIAL_PORT = 'COM36' # '/dev/ttyUSB0'  # Replace with your serial port
+SERIAL_PORT = '/dev/tty.usbmodem1411401'  # Replace with your serial port
 BAUD_RATE = 115200
-PPK2_COM_PORT = 'COM34' # '/dev/ttyACM0'  # Replace with your PPK2 communication port
+PPK2_COM_PORT = '/dev/tty.usbmodemFDAA3F960F322'  # Replace with your PPK2 communication port
 START_VOLTAGE = 3.0  # Start voltage in volts
 END_VOLTAGE = 2.97  # End voltage in volts
 STEP_VOLTAGE = 0.01  # Step increase in volts

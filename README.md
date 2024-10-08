@@ -18,7 +18,7 @@ The current code is expecting the [Adafruit WipperSnapper firmware](https://gith
 ### Software
 - **Python 3.8+**: Required to run the scripts (assume 3.12 or something more modern).
 - **IRNAS PPK2 API Library**: [ppk2-api-python](https://github.com/IRNAS/ppk2-api-python) 
-  - While available with `pip install ppk2-api-python`, there may be things worth picking up in the PRs by using from git:
+  - While available with `pip install ppk2-api`, there may be things worth picking up in the PRs by using from git:
   - Clone and install using the following commands:
     ```bash
     git clone https://github.com/IRNAS/ppk2-api-python.git
