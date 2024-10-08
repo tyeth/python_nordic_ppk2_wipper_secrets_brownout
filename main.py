@@ -1,16 +1,23 @@
 import logging
+import re
 import time
 import serial
+try:
+    import serial.tools.list_ports
+except ImportError:
+    pass
 # https://github.com/IRNAS/ppk2-api-python
 from ppk2_api.ppk2_api import PPK2_API  # or PPK2_MP for multiprocessing version
 
 # Configuration
-SERIAL_PORT = '/dev/tty.usbmodem1411401'  # Replace with your serial port
+SERIAL_PORT = '/dev/cu.usbmodem*'  # Replace with your serial port - * will be matched against numbers
+SERIAL_PORT_ALTERNATIVE = None
+SERIAL_PORT_ALTERNATIVE = '/dev/tty.usbmodem*'  # Replace with 2nd serial port - * will be matched against numbers
 BAUD_RATE = 115200
 PPK2_COM_PORT = '/dev/tty.usbmodemFDAA3F960F322'  # Replace with your PPK2 communication port
-START_VOLTAGE = 3.0  # Start voltage in volts
-END_VOLTAGE = 2.97  # End voltage in volts
-STEP_VOLTAGE = 0.01  # Step increase in volts
+START_VOLTAGE = 3.1  # Start voltage in volts
+END_VOLTAGE = 2.6  # End voltage in volts
+STEP_VOLTAGE = 0.1  # Step increase in volts
 CYCLE_RETRIES = 50  # Number of retries per voltage step
 ATTEMPT_TIMEOUT = 20
 
@@ -20,7 +27,7 @@ ATTEMPT_TIMEOUT = 20
 # Configure logging
 logging.basicConfig(handlers=[logging.FileHandler('voltage_test.log', 'w', 'utf-8',
                                                     delay=True), logging.StreamHandler()],
-                      level=logging.DEBUG,
+                      level=logging.INFO,
                       format='%(asctime)s - %(levelname)s - %(message)s')
 logging.info('Starting voltage cycle test')
 
@@ -35,18 +42,37 @@ ppk.start_measuring()
 # Initialize serial connection
 ser = None
 def initialize_serial_connection(timeout=15):
-    global ser
-    logging.info(f'Initializing serial connection to DUT {SERIAL_PORT} at {BAUD_RATE} baud')
+    global ser, SERIAL_PORT, SERIAL_PORT_ALTERNATIVE, BAUD_RATE
+
+    logging.info(f'Initializing serial connection at {BAUD_RATE} baud to DUT {SERIAL_PORT if SERIAL_PORT_ALTERNATIVE is None else (SERIAL_PORT + " nor " + SERIAL_PORT_ALTERNATIVE)}')
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
+            NEW_SERIAL_PORT = SERIAL_PORT
+            if NEW_SERIAL_PORT.find('*') != -1:
+                # Find all serial ports and match the wildcard
+                ports = serial.tools.list_ports.comports()
+                for port, desc, hwid in sorted(ports):
+                    if port == PPK2_COM_PORT:
+                        continue
+                    if port.find(NEW_SERIAL_PORT.replace('*', '')) != -1 and re.match(r'\d+', port.replace(NEW_SERIAL_PORT.replace('*', ''),'')):
+                        NEW_SERIAL_PORT = port
+                        break
+                    if SERIAL_PORT_ALTERNATIVE is not None and port.find(SERIAL_PORT_ALTERNATIVE.replace('*', '')) != -1 and re.match(r'\d+', port.replace(SERIAL_PORT_ALTERNATIVE.replace('*', ''),'')):
+                        NEW_SERIAL_PORT = port
+                        break
+                if NEW_SERIAL_PORT.find('*') != -1:
+                    logging.debug(f'No matching serial port found for {SERIAL_PORT if SERIAL_PORT_ALTERNATIVE is None else (SERIAL_PORT + " nor " + SERIAL_PORT_ALTERNATIVE)}, aborting')
+                    continue
+            
             # logging.debug('Attempting to initialize serial connection')
-            ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=(3 if timeout > 3 else timeout))
-            logging.info(f'Serial connection established {SERIAL_PORT} at {BAUD_RATE} baud')
+            ser = serial.Serial(NEW_SERIAL_PORT, BAUD_RATE, timeout=(3 if timeout > 3 else timeout))
+            logging.info(f'Serial connection established {NEW_SERIAL_PORT} at {BAUD_RATE} baud')
             return ser
         except serial.SerialException as se:
             # logging.debug(f'Serial connection failed: {se}, retrying...')
-            time.sleep(0.01)
+            pass
+        time.sleep(0.01)
     
     return None
 
@@ -59,12 +85,12 @@ except Exception as e:
 
 def serial_waiting():
     global ser
-    try:
-        if ser is not None and ser.in_waiting > 0:
-            return True
-    except Exception as ee:
-        logging.error(f"Failed to check serial input buffer: {ee}")
-        return False
+    # try:
+    if ser is not None and ser.in_waiting > 0:
+        return True
+    # except Exception as ee:
+    # logging.error(f"Failed to check serial input buffer: {ee}")
+    return False
 
 
 def check_boot_success():
@@ -80,11 +106,12 @@ def check_boot_success():
     start_time = time.time()
     while time.time() - start_time < ATTEMPT_TIMEOUT:
         try:
-            if ser is not None and serial_waiting() > 0:
+            if ser is not None and serial_waiting():
                 line = ser.readline().decode('utf-8').strip()
                 logging.info(f"Serial output: {line}")
-                if 'Performing a WiFi scan for SSID...' in line:
-                # if 'Connected to WiFi!' in line:
+                if ('Performing a WiFi scan for SSID...' in line or
+                    'Connected to WiFi!' in line
+                    ):
                     boot_success = True
                     secrets_found = True
                     break
@@ -99,7 +126,7 @@ def check_boot_success():
             elif ser is None:
                 time.sleep(0.1)
                 ser = initialize_serial_connection()
-        except serial.SerialException as se:
+        except (serial.SerialException,OSError) as se:
             logging.debug(f"Serial read error: {se}, attempting to reconnect")
             if ser is not None and hasattr(ser,"close"):
                 ser.close()
