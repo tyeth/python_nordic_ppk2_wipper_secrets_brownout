@@ -31,19 +31,19 @@ ppk.start_measuring()
 
 # Initialize serial connection
 ser = None
-def initialize_serial_connection(timeout=5):
+def initialize_serial_connection(timeout=15):
     global ser
     logging.info(f'Initializing serial connection to DUT {SERIAL_PORT} at {BAUD_RATE} baud')
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            logging.debug('Attempting to initialize serial connection')
+            # logging.debug('Attempting to initialize serial connection')
             ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=10)
             logging.info(f'Serial connection established {SERIAL_PORT} at {BAUD_RATE} baud')
             return ser
         except serial.SerialException as se:
-            logging.debug(f'Serial connection failed: {se}, retrying...')
-            time.sleep(0.1)
+            # logging.debug(f'Serial connection failed: {se}, retrying...')
+            time.sleep(0.01)
     
     return None
 
