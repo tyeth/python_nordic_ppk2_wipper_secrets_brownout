@@ -39,7 +39,8 @@ The current code is expecting the [Adafruit WipperSnapper firmware](https://gith
 
 0. Disconnect all usb cables + depower all devices.
 1. **Connect Hardware**:
-   - Connect the **ESP32-S3** to the PPK2, I'm using the Battery input on an Adafruit QTPY ESP32S3 (n4r2) with Lipo BFF, using the battery input pins for the PPK2 connection. Alternatively use an appropriate connection method to power the board.
+   - Connect the **ESP32-S3** to the PPK2, I'm using the Battery input on an Adafruit QTPY ESP32S3 (n4r2) with Lipo BFF, using the battery input pins for the PPK2 connection.
+     - Alternatively use an appropriate connection method to power the board. e.g. A Metro board (debuggable) with StemmaQT MAX17048 taking the ppk2 supply as battery and then a two female jst-ph plugged cable (or jumper cables) from the MAX17048 second port to the Metro power in (battery jst).
    - Use a **USB Switchable Breakout a.k.a. "Isolator"** [I used this one](https://www.adafruit.com/product/5972) to disconnect the USB VBUS from the computer and the ESP32s3/DUT.
    - Ensure **ground connections** between all components (should be now).
    - If using logic pins of PPK2 then include a vRef and ground connection to the 3v3 + Gnd from QTPY to the PPK2 logic pins labelled VCC + GND
